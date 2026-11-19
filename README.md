@@ -8,7 +8,10 @@ A browser extension for **Brave** (Manifest V3; Chrome and Edge also work) for q
 ## How it works
 
 - Each tab has its own note. It follows the tab as you navigate.
-- **When the tab closes, its note is deleted.** Notes are kept in memory only (`chrome.storage.session`), never on disk, and are gone when the browser closes.
+- **When the tab closes, its note is deleted.** Notes are stored in your browser profile on this device (`chrome.storage.local`) and never sent anywhere.
+- **Restore:** if Brave restores your tabs after a restart (Settings > On startup > Continue where you left off), each tab gets its note back, matched by URL. Notes not claimed within 3 minutes are deleted.
+- **Asks before you lose a note:** while a note hasn't been saved to a file, closing the tab shows Brave's "Leave page?" prompt. It works on web pages only, after you've clicked in the page, and it also appears on reload or navigation in that tab. On `brave://` and new-tab pages Brave doesn't allow a prompt, so save first.
+- **Side panel:** the button in the popup header opens the same notes in a side panel that follows the active tab.
 - To keep a note, use **Save to file** (the download icon). Brave shows its Save dialog, so pick your Desktop or any folder. The `.txt` file has the tab title, URL, date and your note.
 - A teal dot on the toolbar icon marks tabs that have a note. **Tab notes** lists the open tabs that have one and switches to a tab when you click it.
 
@@ -37,9 +40,10 @@ npm run icons    # regenerate the toolbar icons (Python 3)
 ```
 src/
   manifest.json
-  background.js      toolbar badge: a dot on pages that have a note
+  background.js      tab lifecycle, session restore, badge, close guard
+  content.js         shows the "Leave page?" prompt for unsaved notes
   lib/url.js         short display form of a URL
-  lib/storage.js     per-tab note store (chrome.storage.session behind a small interface)
+  lib/storage.js     per-tab note store, restore and cleanup (chrome.storage.local behind a small interface)
   lib/export.js      file name and contents for Save to file
   popup/             the popup UI
 tests/               unit tests

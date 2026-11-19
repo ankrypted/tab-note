@@ -28,8 +28,11 @@ Rough timing (about 15 hours a week): Stages 1–3 take 2 weeks, Stage 4 takes 4
 - [ ] FR-7 delete with confirmation
 - [ ] FR-8 list of tabs with notes
 - [ ] FR-9 shortcut (`Alt+N`)
+- [ ] FR-24 session restore: restart Brave with "Continue where you left off"; notes return to their tabs
+- [ ] FR-25 close a tab with an unsaved note on a web page: the "Leave page?" prompt appears; after Save to file it does not
+- [ ] FR-26 side panel: expand from the popup, switch tabs, the panel follows; popup still works
 - [ ] NFR-1 to NFR-11 spot-checked (opens under 200 ms, no `innerHTML`, minimal permissions, keyboard only, dark mode)
-- [ ] Open questions in the FR doc answered and recorded
+- [x] Open questions in the FR doc answered and recorded
 
 ## Stage 1: Engineering foundation
 

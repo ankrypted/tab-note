@@ -2,7 +2,7 @@
 
 A browser extension for taking quick, throwaway notes that belong to the tab you are working in.
 
-> **Assumptions (to confirm):** Brave is the primary browser (Chromium, Manifest V3; Chrome/Edge secondary). A note belongs to a **tab**, not to a URL: it stays with the tab as you navigate, and it is gone when the tab closes. Notes live in memory for the browser session only. Saving to a file is how you keep one.
+> **Assumptions (to confirm):** Brave is the primary browser (Chromium, Manifest V3; Chrome/Edge secondary). A note belongs to a **tab**, not to a URL: it stays with the tab as you navigate, and it is gone when the tab closes. Notes are kept on this device (browser profile storage) while the tab is open, and come back when the browser restores its session. Saving to a file is how you keep one.
 
 ## In scope (MVP)
 
@@ -11,7 +11,10 @@ A browser extension for taking quick, throwaway notes that belong to the tab you
 | FR-1 | Open a note for the current tab | Clicking the toolbar icon (or the shortcut) opens a popup showing the note for the active tab. Works on any tab, including new-tab and `brave://` pages. |
 | FR-2 | Create and edit a plain-text note | Typing in the note area is allowed. A tab starts with an empty note. |
 | FR-3 | Auto-save while the tab is open | Changes are kept automatically within about 1 second of the last keystroke. There is no save button. Closing and reopening the popup shows the same note. |
-| FR-4 | Note is deleted when its tab closes | Closing the tab removes its note immediately. A note never outlives its tab, and nothing is left behind after the browser closes. The popup says so ("Deleted when this tab closes"). |
+| FR-4 | Note is deleted when its tab closes | Closing a single tab removes its note immediately. A note never outlives its tab. The popup says so. Closing a whole window or quitting the browser is handled by FR-24. |
+| FR-24 | Notes come back with a restored session | When the browser restores its tabs after a restart, each restored tab gets its note back, matched by page URL (tabs on the same URL are matched in tab order). Notes not claimed by a restored tab within 3 minutes of startup are deleted. A window closed during a session leaves its notes for 2 minutes, then they are deleted. |
+| FR-25 | Ask before closing a tab with an unsaved note | While a note has changed since it was last saved to a file, closing the tab (or the window or browser) shows the browser's "Leave page?" confirmation. Limits: only on http(s) pages, only after the user has interacted with the page, and the same prompt also appears on reload or navigation in that tab. On `brave://` and new-tab pages the browser does not allow a prompt, so the popup tells the user to save first. |
+| FR-26 | Open as a side panel | The popup has an "Open in side panel" button. The panel shows the same note UI, full height, and follows the active tab as the user switches tabs. The popup stays the default. If the browser has no side-panel support the button is hidden. |
 | FR-5 | Save a note to a file | A "Save to file" action downloads the note as a `.txt` file. The browser shows its Save dialog so the user can pick the Desktop or any folder. The file name comes from the tab title. The file contains the tab title, the URL, the date, and the note. Saving does not delete the note. |
 | FR-6 | Indicate that a tab has a note | The toolbar icon shows a badge on tabs that have a non-empty note. |
 | FR-7 | Delete a note by hand | A "Delete" action, with confirmation, clears the note for the current tab. |
@@ -32,9 +35,11 @@ A browser extension for taking quick, throwaway notes that belong to the tab you
 
 ## Open questions
 
-1. Should closing a tab with an unsaved note ask first? Today it deletes without asking. The browser gives extensions no reliable way to intercept a tab close.
-2. Should notes survive a browser restart with session restore? Today they don't.
-3. Popup or side panel as the primary UI?
+All three MVP questions are decided:
+
+1. **Closing a tab with an unsaved note asks first.** Done with the browser's "Leave page?" prompt (FR-25). Extensions cannot intercept a tab close any other way.
+2. **Notes come back on session restore.** FR-24.
+3. **Popup is the default, with an option to expand to a side panel.** FR-26.
 
 ---
 

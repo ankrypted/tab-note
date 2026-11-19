@@ -4,9 +4,9 @@
 |----|----------|-------------|
 | NFR-1 | Performance | The note UI opens and shows the saved note in under 200 ms. |
 | NFR-2 | Performance | Auto-save never blocks typing. The write is debounced and asynchronous. |
-| NFR-3 | Privacy | All data stays on the device, in memory only (`chrome.storage.session`). Nothing is written to disk unless the user saves a file. There is no network access, analytics or telemetry. |
-| NFR-4 | Permissions | Request the minimum permissions: `storage`, `tabs` (badge, list, tab titles) and `downloads` (save to file). No broad host permissions. |
-| NFR-5 | Reliability | No loss of text while the tab is open: the last debounced change is flushed when the popup closes. A note is removed when its tab closes, and stale notes are pruned when the browser starts. |
+| NFR-3 | Privacy | All data stays on the device, in the browser profile (`chrome.storage.local`), and only for as long as the tab lives (or until a restore window ends). Notes are written to the user's disk by the browser, so the privacy policy must say so. There is no network access, analytics or telemetry. |
+| NFR-4 | Permissions | Request the minimum permissions: `storage`, `tabs` (badge, list, tab titles), `downloads` (save to file), `alarms` (clean-up) and `sidePanel`. The content script runs on http(s) pages only to show the close confirmation (FR-25); it reads nothing from the page. Each permission has a written justification. |
+| NFR-5 | Reliability | No loss of text while the tab is open: the last debounced change is flushed when the popup closes. A note is removed when its tab closes. Notes survive a browser restart or crash until the restore window ends (FR-24); stale notes are swept by a periodic alarm. |
 | NFR-6 | Capacity | Support at least 100 open tabs with notes of up to 100 KB each without noticeable slowdown. Session storage is limited to about 10 MB, so the editor stops accepting text past a per-note cap. |
 | NFR-7 | Security | Render note text as plain text only (no `innerHTML`). Use a strict extension CSP and no remote code. |
 | NFR-8 | Usability | Fully keyboard operable. Basic accessibility: labels, focus order, contrast. Respects the OS light/dark theme. |
