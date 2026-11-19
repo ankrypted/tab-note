@@ -1,14 +1,20 @@
 # Tab Note
 
-A browser extension (Chrome / Edge, Manifest V3) for quick notes tied to the page you are on. Notes are stored locally and never leave your device.
+A browser extension for **Brave** (Manifest V3; Chrome and Edge also work) for quick notes tied to the page you are on. Notes are stored locally and never leave your device.
 
 - Requirements: [docs/functional-requirements.md](docs/functional-requirements.md), [docs/non-functional-requirements.md](docs/non-functional-requirements.md)
 
 ## Try it
 
-1. Open `chrome://extensions` (or `edge://extensions`) and turn on **Developer mode**.
+1. In Brave, open `brave://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and choose the [src/](src/) folder.
-3. Open any web page and click the Tab Note icon, or press `Alt+N`.
+3. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to Tab Note. Brave hides extensions by default, and the badge dot only shows when it is pinned.
+4. Open any web page and click the Tab Note icon, or press `Alt+N`.
+
+Notes for Brave:
+- Change the shortcut at `brave://extensions/shortcuts`.
+- Private and Tor windows: extensions are off there by default. To use Tab Note in a private window, open its **Details** on `brave://extensions` and turn on **Allow in Private**.
+- Brave Shields do not affect it. The extension makes no network requests.
 
 ## Develop
 

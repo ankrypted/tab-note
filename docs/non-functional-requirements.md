@@ -10,6 +10,6 @@
 | NFR-6 | Capacity | Support at least 1,000 notes of up to 50 KB each without noticeable slowdown. Warn the user near storage limits. |
 | NFR-7 | Security | Render note text as plain text only (no `innerHTML`). Use a strict extension CSP and no remote code. |
 | NFR-8 | Usability | Fully keyboard operable. Basic accessibility: labels, focus order, contrast. Respects the OS light/dark theme. |
-| NFR-9 | Compatibility | Latest two stable versions of Chrome and Edge (Manifest V3). |
+| NFR-9 | Compatibility | Primary target: the latest stable Brave (Chromium, Manifest V3). Chrome and Edge are expected to work but are secondary. Must work with Brave Shields at default settings. No dependence on Chrome-only services. |
 | NFR-10 | Maintainability | Small, dependency-light codebase (vanilla JS/TS, no framework for MVP). Core storage logic is unit-testable apart from browser APIs. |
 | NFR-11 | Portability | Storage sits behind a small interface so sync or other browsers can be added later without a rewrite. |

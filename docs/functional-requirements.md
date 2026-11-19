@@ -2,7 +2,7 @@
 
 A browser extension for taking quick notes tied to the tab (page) you are working in.
 
-> **Assumptions (to confirm):** Chrome/Edge (Manifest V3). A note is bound to the page URL (origin + path, no hash or tracking params), so it survives tab close and browser restart. Notes are stored locally only.
+> **Assumptions (to confirm):** Brave is the primary browser (Chromium, Manifest V3; Chrome/Edge secondary). A note is bound to the page URL (origin + path, no hash or tracking params), so it survives tab close and browser restart. Notes are stored locally only.
 
 ## In scope (MVP)
 
@@ -26,6 +26,7 @@ A browser extension for taking quick notes tied to the tab (page) you are workin
 - Per-domain or per-tab-session (non-URL) notes
 - Tags, folders, reminders
 - Firefox / Safari support
+- Private-window support (off by default in Brave; the user can allow it per extension)
 
 ## Open questions
 
