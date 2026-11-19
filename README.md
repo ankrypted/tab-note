@@ -1,8 +1,15 @@
 # Tab Note
 
-A browser extension for **Brave** (Manifest V3; Chrome and Edge also work) for quick notes tied to the page you are on. Notes are stored locally and never leave your device.
+A browser extension for **Brave** (Manifest V3; Chrome and Edge also work) for quick, throwaway notes that belong to the tab you are on.
 
 - Requirements: [docs/functional-requirements.md](docs/functional-requirements.md), [docs/non-functional-requirements.md](docs/non-functional-requirements.md)
+
+## How it works
+
+- Each tab has its own note. It follows the tab as you navigate.
+- **When the tab closes, its note is deleted.** Notes are kept in memory only (`chrome.storage.session`), never on disk, and are gone when the browser closes.
+- To keep a note, use **Save to file** (the download icon). Brave shows its Save dialog, so pick your Desktop or any folder. The `.txt` file has the tab title, URL, date and your note.
+- A teal dot on the toolbar icon marks tabs that have a note. **Tab notes** lists the open tabs that have one and switches to a tab when you click it.
 
 ## Try it
 
@@ -15,11 +22,12 @@ Notes for Brave:
 - Change the shortcut at `brave://extensions/shortcuts`.
 - Private and Tor windows: extensions are off there by default. To use Tab Note in a private window, open its **Details** on `brave://extensions` and turn on **Allow in Private**.
 - Brave Shields do not affect it. The extension makes no network requests.
+- Brave keeps the Save dialog's last folder, so pick the Desktop once and it will remember.
 
 ## Develop
 
 ```
-npm test         # unit tests for the URL logic (Node 18+)
+npm test         # unit tests for storage, export and URL helpers (Node 18+)
 npm run icons    # regenerate the toolbar icons (Python 3)
 ```
 
@@ -29,11 +37,11 @@ npm run icons    # regenerate the toolbar icons (Python 3)
 src/
   manifest.json
   background.js      toolbar badge: a dot on pages that have a note
-  lib/url.js         page URL -> note key
-  lib/storage.js     note store (chrome.storage.local behind a small interface)
+  lib/url.js         short display form of a URL
+  lib/storage.js     per-tab note store (chrome.storage.session behind a small interface)
+  lib/export.js      file name and contents for Save to file
   popup/             the popup UI
 tests/               unit tests
 tools/make_icons.py  icon generator
 ```
 
-A note belongs to a page URL. The hash and tracking parameters (`utm_*`, `fbclid`, and so on) are ignored.
