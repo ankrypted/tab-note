@@ -81,6 +81,11 @@ textarea:focus { outline: none; }
 textarea::placeholder { color: var(--muted); }
 .unsupported { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.5; }
 
+.hint { margin: 0; padding: 0 16px 10px; font-size: 12px; color: var(--muted); }
+.btn-icon:disabled { opacity: 0.45; cursor: default; }
+.btn-icon:disabled:hover { background: var(--surface); }
+.footer { gap: 8px; }
+
 /* Footer */
 .footer {
   display: flex; align-items: center; gap: 8px;
@@ -114,7 +119,7 @@ textarea::placeholder { color: var(--muted); }
 .btn-quiet { border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 
 /* When confirming, make room */
-.footer.confirming .btn-primary, .footer.confirming .count { display: none; }
+.footer.confirming .btn-primary, .footer.confirming .count, .footer.confirming #save-file { display: none; }
 .footer.confirming .delete-area { flex: 1; justify-content: flex-end; }
 .footer.confirming #delete { display: none; }
 
