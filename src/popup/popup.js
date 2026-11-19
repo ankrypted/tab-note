@@ -13,7 +13,7 @@ if (inPanel) document.documentElement.classList.add("panel");
 const els = {
   noteView: $("note-view"), listView: $("list-view"),
   favicon: $("favicon"), title: $("page-title"), url: $("page-url"),
-  status: $("status"), statusText: $("status-text"), expand: $("expand"),
+  status: $("status"), statusText: $("status-text"), expand: $("expand"), collapse: $("collapse"),
   note: $("note"), unsupported: $("unsupported"), hint: $("hint"),
   footer: document.querySelector(".footer"),
   openList: $("open-list"), listLabel: $("list-label"), count: $("count"),
@@ -34,7 +34,15 @@ async function init() {
   windowId = (await chrome.windows.getCurrent()).id;
   els.note.maxLength = MAX_NOTE_CHARS;
 
+  // Keep "Tab notes (n)" and the list right when a note appears or a tab closes,
+  // including changes made from another tab or by the background script.
+  chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === "local" && Object.keys(changes).some((k) => k.startsWith("note:"))) refreshViews();
+  });
+  chrome.tabs.onRemoved.addListener(() => refreshViews());
+
   if (inPanel) {
+    els.collapse.hidden = false;
     // The panel stays open while you switch tabs, so follow the active tab.
     chrome.tabs.onActivated.addListener(async ({ tabId, windowId: w }) => {
       if (w !== windowId) return;
@@ -175,6 +183,22 @@ els.expand.addEventListener("click", async () => {
   }
 });
 
+/* ---------- Back from the side panel to the popup ---------- */
+
+els.collapse.addEventListener("click", async () => {
+  await flush();
+  try {
+    await chrome.action.openPopup({ windowId });   // needs a recent browser
+  } catch {
+    // Can't open the popup from here: closing the panel is still enough,
+    // the toolbar icon opens the popup.
+  }
+  if (chrome.sidePanel?.close) {
+    try { await chrome.sidePanel.close({ windowId }); return; } catch { /* fall through */ }
+  }
+  window.close();
+});
+
 /* ---------- Save to a file ---------- */
 
 els.saveFile.addEventListener("click", async () => {
@@ -231,9 +255,21 @@ function closeConfirm(focus = true) {
 
 /* ---------- Tabs that have notes ---------- */
 
+// Notes whose tab is still open (a note can linger briefly after its window closed).
+async function liveNotes() {
+  const open = new Map((await chrome.tabs.query({})).map((t) => [t.id, t]));
+  return (await store.list())
+    .filter((n) => open.has(n.tabId))
+    .map((n) => ({ note: n, tab: open.get(n.tabId) }));
+}
+
 async function refreshListLabel() {
-  const notes = await store.list();
-  els.listLabel.textContent = `Tab notes (${notes.length})`;
+  els.listLabel.textContent = `Tab notes (${(await liveNotes()).length})`;
+}
+
+async function refreshViews() {
+  await refreshListLabel();
+  if (!els.listView.hidden) await renderList();
 }
 
 els.openList.addEventListener("click", async () => {
@@ -251,13 +287,7 @@ els.back.addEventListener("click", () => {
 });
 
 async function renderList() {
-  const notes = await store.list();
-  const rows = [];
-  for (const n of notes) {
-    const t = await chrome.tabs.get(n.tabId).catch(() => null);
-    if (!t) continue;        // its tab is gone; housekeeping deletes the note
-    rows.push({ note: n, tab: t });
-  }
+  const rows = await liveNotes();
 
   els.list.replaceChildren();
   els.listEmpty.hidden = rows.length > 0;
