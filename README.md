@@ -3,6 +3,7 @@
 A browser extension for **Brave** (Manifest V3; Chrome and Edge also work) for quick, throwaway notes that belong to the tab you are on.
 
 - Requirements: [docs/functional-requirements.md](docs/functional-requirements.md), [docs/non-functional-requirements.md](docs/non-functional-requirements.md)
+- Roadmap and stage checklists: [docs/roadmap.md](docs/roadmap.md)
 
 ## How it works
 
