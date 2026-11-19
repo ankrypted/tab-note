@@ -1,16 +1,20 @@
 import { displayUrl } from "../lib/url.js";
-import { createNoteStore, MAX_NOTE_CHARS } from "../lib/storage.js";
+import { createNoteStore, MAX_NOTE_CHARS, isUnsaved } from "../lib/storage.js";
 import { noteFilename, noteFileContents, noteDataUrl } from "../lib/export.js";
 
 const SAVE_DELAY_MS = 600;
 const store = createNoteStore();
 const $ = (id) => document.getElementById(id);
 
+// The same page runs as the toolbar popup and as the side panel.
+const inPanel = new URLSearchParams(location.search).get("mode") === "panel";
+if (inPanel) document.documentElement.classList.add("panel");
+
 const els = {
   noteView: $("note-view"), listView: $("list-view"),
   favicon: $("favicon"), title: $("page-title"), url: $("page-url"),
-  status: $("status"), statusText: $("status-text"),
-  note: $("note"), unsupported: $("unsupported"),
+  status: $("status"), statusText: $("status-text"), expand: $("expand"),
+  note: $("note"), unsupported: $("unsupported"), hint: $("hint"),
   footer: document.querySelector(".footer"),
   openList: $("open-list"), listLabel: $("list-label"), count: $("count"),
   saveFile: $("save-file"),
@@ -18,50 +22,111 @@ const els = {
   back: $("back"), list: $("list"), listEmpty: $("list-empty"), listCount: $("list-count"),
 };
 
-let tab = null;        // the active tab this popup belongs to
+let tab = null;          // the tab whose note is shown
+let windowId = null;     // the browser window this popup / panel belongs to
 let saveTimer = null;
 let dirty = false;
+let unsaved = false;     // note changed since it was last saved to a file
 
 init();
 
 async function init() {
-  [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  windowId = (await chrome.windows.getCurrent()).id;
+  els.note.maxLength = MAX_NOTE_CHARS;
+
+  if (inPanel) {
+    // The panel stays open while you switch tabs, so follow the active tab.
+    chrome.tabs.onActivated.addListener(async ({ tabId, windowId: w }) => {
+      if (w !== windowId) return;
+      await flush();
+      loadTab(await chrome.tabs.get(tabId).catch(() => null));
+    });
+    chrome.tabs.onUpdated.addListener((tabId, info, t) => {
+      if (tab && tabId === tab.id && (info.title || info.url)) showHeader(t);
+    });
+  } else if (chrome.sidePanel?.open) {
+    els.expand.hidden = false;
+  }
+
+  const [active] = await chrome.tabs.query({ active: true, windowId });
+  await loadTab(active ?? null);
+  refreshListLabel();
+}
+
+async function loadTab(t) {
+  tab = t;
+  clearTimeout(saveTimer);
+  dirty = false;
+  closeConfirm(false);
 
   if (!tab || tab.id == null) {
     els.title.textContent = "No tab";
+    els.url.textContent = "";
     els.favicon.textContent = "–";
     els.note.hidden = true;
     els.unsupported.hidden = false;
     els.del.hidden = true;
     els.saveFile.disabled = true;
+    setStatus("hidden");
+    updateHint();
     return;
   }
 
-  const title = tab.title || displayUrl(tab.url) || "This tab";
-  els.title.textContent = title;
-  els.url.textContent = displayUrl(tab.url);
-  els.favicon.textContent = (title.trim()[0] || "•").toUpperCase();
-
-  els.note.maxLength = MAX_NOTE_CHARS;
+  els.note.hidden = false;
+  els.unsupported.hidden = true;
+  showHeader(tab);
   const existing = await store.get(tab.id);
   els.note.value = existing?.text ?? "";
+  unsaved = isUnsaved(existing);
+  setStatus("hidden");
   syncControls(!!existing);
-  els.note.focus();
-  els.note.setSelectionRange(els.note.value.length, els.note.value.length);
-  refreshListLabel();
+  if (!inPanel) {
+    els.note.focus();
+    els.note.setSelectionRange(els.note.value.length, els.note.value.length);
+  }
+}
+
+function showHeader(t) {
+  tab = { ...tab, ...t };
+  const title = t.title || displayUrl(t.url) || "This tab";
+  els.title.textContent = title;
+  els.url.textContent = displayUrl(t.url);
+  els.favicon.textContent = (title.trim()[0] || "•").toUpperCase();
+  updateHint();
 }
 
 function syncControls(hasNote) {
   els.del.hidden = !hasNote;
   els.saveFile.disabled = !hasNote;
   updateCount();
+  updateHint();
+}
+
+// Tells the user, in plain words, what happens to the note.
+function updateHint() {
+  const hasText = els.note.value.trim() !== "";
+  const web = !!tab?.url && /^https?:/.test(tab.url);
+  els.hint.classList.remove("warn");
+  if (!tab || !hasText) {
+    els.hint.textContent = "Deleted when this tab closes. Save to file keeps a copy.";
+  } else if (!unsaved) {
+    els.hint.textContent = "Saved to a file. The note is still deleted when this tab closes.";
+  } else if (web) {
+    els.hint.textContent = "Not saved to a file yet. Closing this tab will ask first.";
+    els.hint.classList.add("warn");
+  } else {
+    els.hint.textContent = "Not saved to a file. This page can't ask before closing, so save first.";
+    els.hint.classList.add("warn");
+  }
 }
 
 /* ---------- Auto-save (the note lives only while the tab is open) ---------- */
 
 els.note.addEventListener("input", () => {
   dirty = true;
+  unsaved = els.note.value.trim() !== "";
   updateCount();
+  updateHint();
   els.saveFile.disabled = els.note.value.trim() === "";
   setStatus("saving");
   clearTimeout(saveTimer);
@@ -72,7 +137,8 @@ async function flush() {
   clearTimeout(saveTimer);
   if (!tab || !dirty) return;
   dirty = false;
-  const saved = await store.save(tab.id, els.note.value);
+  const saved = await store.save(tab.id, els.note.value, { url: tab.url, title: tab.title });
+  unsaved = isUnsaved(saved);
   syncControls(!!saved);
   setStatus(saved ? "saved" : "hidden");
   refreshListLabel();
@@ -95,6 +161,20 @@ function updateCount() {
   els.count.textContent = n ? `${n.toLocaleString()} char${n === 1 ? "" : "s"}` : "Alt+N to open";
 }
 
+/* ---------- Expand to the side panel ---------- */
+
+els.expand.addEventListener("click", async () => {
+  try {
+    // Call open() first: it needs the click's user gesture.
+    const opened = chrome.sidePanel.open({ windowId });
+    await flush();
+    await opened;
+    window.close();
+  } catch {
+    setStatus("saved", "Side panel not available here");
+  }
+});
+
 /* ---------- Save to a file ---------- */
 
 els.saveFile.addEventListener("click", async () => {
@@ -111,6 +191,9 @@ els.saveFile.addEventListener("click", async () => {
       filename: noteFilename(info.title),
       saveAs: true,
     });
+    await store.markExported(tab.id);
+    unsaved = false;
+    updateHint();
     setStatus("saved", "Saved to file");
   } catch {
     // Dialog cancelled, or the download was blocked: leave the note as it is.
@@ -125,13 +208,14 @@ els.del.addEventListener("click", () => {
   els.yes.focus();
 });
 
-els.no.addEventListener("click", closeConfirm);
+els.no.addEventListener("click", () => closeConfirm());
 
 els.yes.addEventListener("click", async () => {
   clearTimeout(saveTimer);
   dirty = false;
   await store.remove(tab.id);
   els.note.value = "";
+  unsaved = false;
   syncControls(false);
   setStatus("hidden");
   closeConfirm();
@@ -139,10 +223,10 @@ els.yes.addEventListener("click", async () => {
   els.note.focus();
 });
 
-function closeConfirm() {
+function closeConfirm(focus = true) {
   els.footer.classList.remove("confirming");
   els.confirm.hidden = true;
-  els.del.hidden ? els.note.focus() : els.del.focus();
+  if (focus) els.del.hidden ? els.note.focus() : els.del.focus();
 }
 
 /* ---------- Tabs that have notes ---------- */
@@ -171,10 +255,7 @@ async function renderList() {
   const rows = [];
   for (const n of notes) {
     const t = await chrome.tabs.get(n.tabId).catch(() => null);
-    if (!t) {
-      store.remove(n.tabId);   // orphan: its tab is gone
-      continue;
-    }
+    if (!t) continue;        // its tab is gone; housekeeping deletes the note
     rows.push({ note: n, tab: t });
   }
 
@@ -210,7 +291,7 @@ async function goToTab(t, isThis) {
   }
   await chrome.tabs.update(t.id, { active: true });
   await chrome.windows.update(t.windowId, { focused: true });
-  window.close();
+  if (!inPanel) window.close();
 }
 
 /* ---------- helpers (textContent only: notes are never parsed as HTML) ---------- */
