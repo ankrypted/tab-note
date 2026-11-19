@@ -1,34 +1,46 @@
-// Keeps the toolbar badge in sync: a dot on pages that have a note.
-import { normalizeUrl } from "./lib/url.js";
-import { createNoteStore, NOTE_PREFIX } from "./lib/storage.js";
+// Keeps notes tidy and the badge honest:
+//  - a note is deleted the moment its tab closes
+//  - stale notes are pruned at startup
+//  - the toolbar shows a dot on tabs that have a note
+import { createNoteStore, NOTE_PREFIX, tabIdFromKey } from "./lib/storage.js";
 
 const store = createNoteStore();
 
-async function updateBadge(tabId, url) {
-  const key = url ? normalizeUrl(url) : null;
-  const note = key ? await store.get(key) : null;
-  await chrome.action.setBadgeBackgroundColor({ tabId, color: "#0F766E" });
-  await chrome.action.setBadgeText({ tabId, text: note ? "●" : "" });
-}
-
-async function refreshTab(tabId) {
+async function setBadge(tabId, hasNote) {
   try {
-    const tab = await chrome.tabs.get(tabId);
-    await updateBadge(tabId, tab.url);
+    await chrome.action.setBadgeBackgroundColor({ tabId, color: "#0F766E" });
+    await chrome.action.setBadgeText({ tabId, text: hasNote ? "●" : "" });
   } catch {
-    // Tab closed before we could read it.
+    // Tab closed before we could update it.
   }
 }
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
-  if (changeInfo.url || changeInfo.status === "complete") refreshTab(tabId);
-});
+async function refreshBadge(tabId) {
+  await setBadge(tabId, !!(await store.get(tabId)));
+}
 
-chrome.tabs.onActivated.addListener(({ tabId }) => refreshTab(tabId));
-
-chrome.storage.onChanged.addListener(async (changes, area) => {
-  if (area !== "local") return;
-  if (!Object.keys(changes).some((k) => k.startsWith(NOTE_PREFIX))) return;
+async function prune() {
   const tabs = await chrome.tabs.query({});
-  for (const tab of tabs) if (tab.id != null) updateBadge(tab.id, tab.url);
+  await store.prune(tabs.map((t) => t.id));
+}
+
+chrome.runtime.onInstalled.addListener(prune);
+chrome.runtime.onStartup.addListener(prune);
+
+chrome.tabs.onRemoved.addListener((tabId) => store.remove(tabId));
+
+// Chrome resets a tab's badge on navigation, so set it again.
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.url || changeInfo.status === "loading" || changeInfo.status === "complete") {
+    refreshBadge(tabId);
+  }
+});
+chrome.tabs.onActivated.addListener(({ tabId }) => refreshBadge(tabId));
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== "session") return;
+  for (const [key, change] of Object.entries(changes)) {
+    if (!key.startsWith(NOTE_PREFIX)) continue;
+    setBadge(tabIdFromKey(key), !!change.newValue);
+  }
 });

@@ -3,7 +3,7 @@
   "name": "Tab Note",
   "version": "0.1.0",
   "description": "Quick notes tied to the page you are on.",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["storage", "tabs", "downloads"],
   "action": {
     "default_title": "Tab Note",
     "default_popup": "popup/popup.html",
