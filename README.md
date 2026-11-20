@@ -15,7 +15,11 @@ A browser extension for **Brave** (Manifest V3; Chrome and Edge also work) for q
 - To keep a note, use **Save to file** (the download icon). Brave shows its Save dialog, so pick your Desktop or any folder. The `.txt` file has the tab title, URL, date and your note.
 - A teal dot on the toolbar icon marks tabs that have a note. **Tab notes** lists the open tabs that have one and switches to a tab when you click it.
 
-## Try it
+## Download (for friends)
+
+Grab `tab-note-<version>.tar.gz` from the [Releases page](https://github.com/ankrypted/tab-note/releases). It holds the `extension` folder and an install guide. To build it yourself: `npm run package` (writes `dist/`).
+
+## Try it from source
 
 1. In Brave, open `brave://extensions` and turn on **Developer mode** (top right).
 2. Click **Load unpacked** and choose the [src/](src/) folder.
@@ -33,6 +37,7 @@ Notes for Brave:
 ```
 npm test         # unit tests for storage, export and URL helpers (Node 18+)
 npm run icons    # regenerate the toolbar icons (Python 3)
+npm run package  # build dist/tab-note-<version>.tar.gz for sharing (Python 3)
 ```
 
 ## Layout
@@ -48,5 +53,7 @@ src/
   popup/             the popup UI
 tests/               unit tests
 tools/make_icons.py  icon generator
+tools/package.py     builds the shareable tar.gz
+tools/dist-readme.md install guide that goes inside the tar.gz
 ```
 

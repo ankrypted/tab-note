@@ -1,11 +1,12 @@
 {
   "name": "tab-note",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "description": "Browser extension for quick notes tied to the page you are on.",
   "scripts": {
     "test": "node --test tests/",
-    "icons": "python tools/make_icons.py"
+    "icons": "python tools/make_icons.py",
+    "package": "python tools/package.py"
   }
 }
