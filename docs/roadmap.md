@@ -7,7 +7,7 @@ Goal: a published, tested, full-stack project that backs an SDE 2 résumé. The 
 | Stage | Name | Status |
 |-------|------|--------|
 | 0 | MVP | Done |
-| 1 | Engineering foundation | In progress |
+| 1 | Engineering foundation | Done |
 | 2 | Robustness and design doc | Not started |
 | 3 | Publish | Not started |
 | 4 | Opt-in keep and sync | Not started |
@@ -39,8 +39,8 @@ Rough timing (about 15 hours a week): Stages 1–3 take 2 weeks, Stage 4 takes 4
 - [x] FR-10 convert `src/` to TypeScript (strict)
 - [x] FR-10 add a build tool (Vite or esbuild) that outputs a loadable folder and a zip
 - [x] NFR-12 lint and format config, passing
-- [ ] FR-11 GitHub Actions: lint, type-check, test, build, upload zip
-- [ ] NFR-13 coverage report in CI, at least 90% on `lib/`
+- [x] FR-11 GitHub Actions: lint, type-check, test, build, upload zip
+- [x] NFR-13 coverage report in CI, at least 90% on `lib/`
 - [x] README "Develop" section updated for the new build
 
 Done when: a push to GitHub runs CI green and produces an installable zip.
