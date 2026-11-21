@@ -3,10 +3,30 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Browser extension for quick notes tied to the page you are on.",
+  "description": "Browser extension for quick notes tied to the tab you are on.",
   "scripts": {
-    "test": "node --test tests/",
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write \"{src,tests,scripts}/**/*.{ts,mjs,css,html,json}\" \"*.{js,ts,json}\"",
+    "format:check": "prettier --check \"{src,tests,scripts}/**/*.{ts,mjs,css,html,json}\" \"*.{js,ts,json}\"",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "check": "npm run lint && npm run typecheck && npm run format:check && npm run test:coverage && npm run build",
     "icons": "python tools/make_icons.py",
-    "package": "python tools/package.py"
+    "package": "npm run build && python tools/package.py"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.17.0",
+    "@types/chrome": "0.0.287",
+    "@vitest/coverage-v8": "2.1.8",
+    "esbuild": "0.24.2",
+    "eslint": "9.17.0",
+    "eslint-config-prettier": "9.1.0",
+    "globals": "15.14.0",
+    "prettier": "3.4.2",
+    "typescript": "5.6.3",
+    "typescript-eslint": "8.19.1",
+    "vitest": "2.1.8"
   }
 }

@@ -1,45 +1,71 @@
-import { displayUrl } from "../lib/url.js";
-import { createNoteStore, MAX_NOTE_CHARS, isUnsaved } from "../lib/storage.js";
-import { noteFilename, noteFileContents, noteDataUrl } from "../lib/export.js";
+import { displayUrl } from "../lib/url";
+import { createNoteStore, MAX_NOTE_CHARS, isUnsaved } from "../lib/storage";
+import { noteFilename, noteFileContents, noteDataUrl } from "../lib/export";
 
 const SAVE_DELAY_MS = 600;
 const store = createNoteStore();
-const $ = (id) => document.getElementById(id);
+
+// Fail loudly if the HTML and this file ever drift apart.
+function $<T extends HTMLElement = HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Missing element #${id}`);
+  return el as T;
+}
 
 // The same page runs as the toolbar popup and as the side panel.
 const inPanel = new URLSearchParams(location.search).get("mode") === "panel";
 if (inPanel) document.documentElement.classList.add("panel");
 
 const els = {
-  noteView: $("note-view"), listView: $("list-view"),
-  favicon: $("favicon"), title: $("page-title"), url: $("page-url"),
-  status: $("status"), statusText: $("status-text"), expand: $("expand"), collapse: $("collapse"),
-  note: $("note"), unsupported: $("unsupported"), hint: $("hint"),
-  footer: document.querySelector(".footer"),
-  openList: $("open-list"), listLabel: $("list-label"), count: $("count"),
-  saveFile: $("save-file"),
-  del: $("delete"), confirm: $("confirm"), yes: $("confirm-yes"), no: $("confirm-no"),
-  back: $("back"), list: $("list"), listEmpty: $("list-empty"), listCount: $("list-count"),
+  noteView: $("note-view"),
+  listView: $("list-view"),
+  favicon: $("favicon"),
+  title: $("page-title"),
+  url: $("page-url"),
+  status: $("status"),
+  statusText: $("status-text"),
+  expand: $("expand"),
+  collapse: $("collapse"),
+  note: $<HTMLTextAreaElement>("note"),
+  unsupported: $("unsupported"),
+  hint: $("hint"),
+  footer: $("footer"),
+  openList: $("open-list"),
+  listLabel: $("list-label"),
+  count: $("count"),
+  saveFile: $<HTMLButtonElement>("save-file"),
+  del: $("delete"),
+  confirm: $("confirm"),
+  yes: $("confirm-yes"),
+  no: $("confirm-no"),
+  back: $("back"),
+  list: $("list"),
+  listEmpty: $("list-empty"),
+  listCount: $("list-count"),
 };
 
-let tab = null;          // the tab whose note is shown
-let windowId = null;     // the browser window this popup / panel belongs to
-let saveTimer = null;
+type StatusState = "saving" | "saved" | "hidden";
+
+let tab: chrome.tabs.Tab | null = null; // the tab whose note is shown
+let windowId: number = chrome.windows.WINDOW_ID_CURRENT; // the window this popup / panel belongs to
+let saveTimer: ReturnType<typeof setTimeout> | undefined;
 let dirty = false;
-let unsaved = false;     // note changed since it was last saved to a file
+let unsaved = false; // note changed since it was last saved to a file
 
-init();
+void init();
 
-async function init() {
-  windowId = (await chrome.windows.getCurrent()).id;
+async function init(): Promise<void> {
+  windowId = (await chrome.windows.getCurrent()).id ?? chrome.windows.WINDOW_ID_CURRENT;
   els.note.maxLength = MAX_NOTE_CHARS;
 
   // Keep "Tab notes (n)" and the list right when a note appears or a tab closes,
   // including changes made from another tab or by the background script.
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === "local" && Object.keys(changes).some((k) => k.startsWith("note:"))) refreshViews();
+    if (area === "local" && Object.keys(changes).some((k) => k.startsWith("note:"))) {
+      void refreshViews();
+    }
   });
-  chrome.tabs.onRemoved.addListener(() => refreshViews());
+  chrome.tabs.onRemoved.addListener(() => void refreshViews());
 
   if (inPanel) {
     els.collapse.hidden = false;
@@ -47,27 +73,28 @@ async function init() {
     chrome.tabs.onActivated.addListener(async ({ tabId, windowId: w }) => {
       if (w !== windowId) return;
       await flush();
-      loadTab(await chrome.tabs.get(tabId).catch(() => null));
+      await loadTab(await chrome.tabs.get(tabId).catch(() => null));
     });
     chrome.tabs.onUpdated.addListener((tabId, info, t) => {
       if (tab && tabId === tab.id && (info.title || info.url)) showHeader(t);
     });
-  } else if (chrome.sidePanel?.open) {
+  } else if (typeof chrome.sidePanel?.open === "function") {
+    // Not every Chromium browser ships the side-panel API, so check at runtime.
     els.expand.hidden = false;
   }
 
   const [active] = await chrome.tabs.query({ active: true, windowId });
   await loadTab(active ?? null);
-  refreshListLabel();
+  void refreshListLabel();
 }
 
-async function loadTab(t) {
+async function loadTab(t: chrome.tabs.Tab | null): Promise<void> {
   tab = t;
   clearTimeout(saveTimer);
   dirty = false;
   closeConfirm(false);
 
-  if (!tab || tab.id == null) {
+  if (!t || t.id === undefined) {
     els.title.textContent = "No tab";
     els.url.textContent = "";
     els.favicon.textContent = "–";
@@ -82,8 +109,8 @@ async function loadTab(t) {
 
   els.note.hidden = false;
   els.unsupported.hidden = true;
-  showHeader(tab);
-  const existing = await store.get(tab.id);
+  showHeader(t);
+  const existing = await store.get(t.id);
   els.note.value = existing?.text ?? "";
   unsaved = isUnsaved(existing);
   setStatus("hidden");
@@ -94,8 +121,8 @@ async function loadTab(t) {
   }
 }
 
-function showHeader(t) {
-  tab = { ...tab, ...t };
+function showHeader(t: chrome.tabs.Tab): void {
+  tab = t;
   const title = t.title || displayUrl(t.url) || "This tab";
   els.title.textContent = title;
   els.url.textContent = displayUrl(t.url);
@@ -103,7 +130,7 @@ function showHeader(t) {
   updateHint();
 }
 
-function syncControls(hasNote) {
+function syncControls(hasNote: boolean): void {
   els.del.hidden = !hasNote;
   els.saveFile.disabled = !hasNote;
   updateCount();
@@ -111,7 +138,7 @@ function syncControls(hasNote) {
 }
 
 // Tells the user, in plain words, what happens to the note.
-function updateHint() {
+function updateHint(): void {
   const hasText = els.note.value.trim() !== "";
   const web = !!tab?.url && /^https?:/.test(tab.url);
   els.hint.classList.remove("warn");
@@ -123,7 +150,8 @@ function updateHint() {
     els.hint.textContent = "Not saved to a file yet. Closing this tab will ask first.";
     els.hint.classList.add("warn");
   } else {
-    els.hint.textContent = "Not saved to a file. This page can't ask before closing, so save first.";
+    els.hint.textContent =
+      "Not saved to a file. This page can't ask before closing, so save first.";
     els.hint.classList.add("warn");
   }
 }
@@ -138,33 +166,33 @@ els.note.addEventListener("input", () => {
   els.saveFile.disabled = els.note.value.trim() === "";
   setStatus("saving");
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(flush, SAVE_DELAY_MS);
+  saveTimer = setTimeout(() => void flush(), SAVE_DELAY_MS);
 });
 
-async function flush() {
+async function flush(): Promise<void> {
   clearTimeout(saveTimer);
-  if (!tab || !dirty) return;
+  if (!tab || tab.id === undefined || !dirty) return;
   dirty = false;
   const saved = await store.save(tab.id, els.note.value, { url: tab.url, title: tab.title });
   unsaved = isUnsaved(saved);
   syncControls(!!saved);
   setStatus(saved ? "saved" : "hidden");
-  refreshListLabel();
+  void refreshListLabel();
 }
 
 // Don't lose the last keystrokes when the popup closes.
-window.addEventListener("pagehide", flush);
+window.addEventListener("pagehide", () => void flush());
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "hidden") flush();
+  if (document.visibilityState === "hidden") void flush();
 });
 
-function setStatus(state, text) {
+function setStatus(state: StatusState, text?: string): void {
   els.status.hidden = state === "hidden";
   els.status.classList.toggle("saving", state === "saving");
   els.statusText.textContent = text ?? (state === "saving" ? "Saving…" : "Saved");
 }
 
-function updateCount() {
+function updateCount(): void {
   const n = els.note.value.length;
   els.count.textContent = n ? `${n.toLocaleString()} char${n === 1 ? "" : "s"}` : "Alt+N to open";
 }
@@ -185,16 +213,25 @@ els.expand.addEventListener("click", async () => {
 
 /* ---------- Back from the side panel to the popup ---------- */
 
+// sidePanel.close() is newer than the type definitions we build against.
+type SidePanelWithClose = { close?: (options: { windowId: number }) => Promise<void> };
+
 els.collapse.addEventListener("click", async () => {
   await flush();
   try {
-    await chrome.action.openPopup({ windowId });   // needs a recent browser
+    await chrome.action.openPopup({ windowId }); // needs a recent browser
   } catch {
     // Can't open the popup from here: closing the panel is still enough,
     // the toolbar icon opens the popup.
   }
-  if (chrome.sidePanel?.close) {
-    try { await chrome.sidePanel.close({ windowId }); return; } catch { /* fall through */ }
+  const close = (chrome.sidePanel as SidePanelWithClose | undefined)?.close;
+  if (close) {
+    try {
+      await close.call(chrome.sidePanel, { windowId });
+      return;
+    } catch {
+      // fall through to window.close()
+    }
   }
   window.close();
 });
@@ -204,10 +241,11 @@ els.collapse.addEventListener("click", async () => {
 els.saveFile.addEventListener("click", async () => {
   await flush();
   const text = els.note.value;
-  if (!tab || text.trim() === "") return;
+  if (!tab || tab.id === undefined || text.trim() === "") return;
 
-  const current = await chrome.tabs.get(tab.id).catch(() => tab);
-  const info = { title: current.title, url: current.url, text };
+  const tabId = tab.id;
+  const current = await chrome.tabs.get(tabId).catch(() => tab);
+  const info = { title: current?.title, url: current?.url, text };
   try {
     // The browser shows its Save dialog, so the user can pick the Desktop.
     await chrome.downloads.download({
@@ -215,7 +253,7 @@ els.saveFile.addEventListener("click", async () => {
       filename: noteFilename(info.title),
       saveAs: true,
     });
-    await store.markExported(tab.id);
+    await store.markExported(tabId);
     unsaved = false;
     updateHint();
     setStatus("saved", "Saved to file");
@@ -237,37 +275,41 @@ els.no.addEventListener("click", () => closeConfirm());
 els.yes.addEventListener("click", async () => {
   clearTimeout(saveTimer);
   dirty = false;
-  await store.remove(tab.id);
+  if (tab?.id !== undefined) await store.remove(tab.id);
   els.note.value = "";
   unsaved = false;
   syncControls(false);
   setStatus("hidden");
   closeConfirm();
-  refreshListLabel();
+  void refreshListLabel();
   els.note.focus();
 });
 
-function closeConfirm(focus = true) {
+function closeConfirm(focus = true): void {
   els.footer.classList.remove("confirming");
   els.confirm.hidden = true;
-  if (focus) els.del.hidden ? els.note.focus() : els.del.focus();
+  if (!focus) return;
+  if (els.del.hidden) els.note.focus();
+  else els.del.focus();
 }
 
 /* ---------- Tabs that have notes ---------- */
 
 // Notes whose tab is still open (a note can linger briefly after its window closed).
 async function liveNotes() {
-  const open = new Map((await chrome.tabs.query({})).map((t) => [t.id, t]));
-  return (await store.list())
-    .filter((n) => open.has(n.tabId))
-    .map((n) => ({ note: n, tab: open.get(n.tabId) }));
+  const open = new Map<number, chrome.tabs.Tab>();
+  for (const t of await chrome.tabs.query({})) if (t.id !== undefined) open.set(t.id, t);
+  return (await store.list()).flatMap((note) => {
+    const t = open.get(note.tabId);
+    return t ? [{ note, tab: t }] : [];
+  });
 }
 
-async function refreshListLabel() {
+async function refreshListLabel(): Promise<void> {
   els.listLabel.textContent = `Tab notes (${(await liveNotes()).length})`;
 }
 
-async function refreshViews() {
+async function refreshViews(): Promise<void> {
   await refreshListLabel();
   if (!els.listView.hidden) await renderList();
 }
@@ -286,7 +328,7 @@ els.back.addEventListener("click", () => {
   els.openList.focus();
 });
 
-async function renderList() {
+async function renderList(): Promise<void> {
   const rows = await liveNotes();
 
   els.list.replaceChildren();
@@ -302,23 +344,26 @@ async function renderList() {
     btn.type = "button";
     btn.className = "item";
     btn.append(
-      row("item-top",
+      row(
+        "item-top",
         span("item-title", t.title || displayUrl(t.url) || "Untitled"),
-        span("item-when", isThis ? "This tab" : ago(note.updatedAt))),
+        span("item-when", isThis ? "This tab" : ago(note.updatedAt)),
+      ),
       span("item-url", displayUrl(t.url), "div"),
       span("item-snippet", firstLine(note.text), "div"),
     );
-    btn.addEventListener("click", () => goToTab(t, isThis));
+    btn.addEventListener("click", () => void goToTab(t, isThis));
     li.append(btn);
     els.list.append(li);
   }
 }
 
-async function goToTab(t, isThis) {
+async function goToTab(t: chrome.tabs.Tab, isThis: boolean): Promise<void> {
   if (isThis) {
     els.back.click();
     return;
   }
+  if (t.id === undefined) return;
   await chrome.tabs.update(t.id, { active: true });
   await chrome.windows.update(t.windowId, { focused: true });
   if (!inPanel) window.close();
@@ -326,25 +371,25 @@ async function goToTab(t, isThis) {
 
 /* ---------- helpers (textContent only: notes are never parsed as HTML) ---------- */
 
-function span(cls, text, tag = "span") {
+function span(cls: string, text: string, tag: "span" | "div" = "span"): HTMLElement {
   const el = document.createElement(tag);
   el.className = cls;
   el.textContent = text;
   return el;
 }
 
-function row(cls, ...children) {
+function row(cls: string, ...children: HTMLElement[]): HTMLElement {
   const el = document.createElement("div");
   el.className = cls;
   el.append(...children);
   return el;
 }
 
-function firstLine(text) {
+function firstLine(text: string): string {
   return text.split("\n").find((l) => l.trim()) ?? "";
 }
 
-function ago(ts) {
+function ago(ts: number): string {
   const mins = Math.floor((Date.now() - ts) / 60000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;

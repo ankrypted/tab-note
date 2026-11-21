@@ -2,14 +2,14 @@
 //  - a note is deleted when its tab closes
 //  - after a browser restart, restored tabs get their notes back (matched by URL)
 //  - the toolbar shows a dot on tabs that have a note
-//  - tabs with a note not yet saved to a file ask before closing (see content.js)
-import { createNoteStore, NOTE_PREFIX, tabIdFromKey, isUnsaved } from "./lib/storage.js";
+//  - tabs with a note not yet saved to a file ask before closing (see content.ts)
+import { createNoteStore, tabIdFromKey, isUnsaved, type Note } from "./lib/storage";
 
 const store = createNoteStore();
 
 /* ---------- badge and close guard ---------- */
 
-async function setBadge(tabId, hasNote) {
+async function setBadge(tabId: number, hasNote: boolean): Promise<void> {
   try {
     await chrome.action.setBadgeBackgroundColor({ tabId, color: "#0F766E" });
     await chrome.action.setBadgeText({ tabId, text: hasNote ? "●" : "" });
@@ -18,7 +18,7 @@ async function setBadge(tabId, hasNote) {
   }
 }
 
-async function pushGuard(tabId, note) {
+async function pushGuard(tabId: number, note: Note | null): Promise<void> {
   try {
     await chrome.tabs.sendMessage(tabId, { type: "guard", on: isUnsaved(note) });
   } catch {
@@ -26,25 +26,27 @@ async function pushGuard(tabId, note) {
   }
 }
 
-async function refreshTab(tabId) {
+async function refreshTab(tabId: number): Promise<void> {
   const note = await store.get(tabId);
   await setBadge(tabId, !!note);
   await pushGuard(tabId, note);
 }
 
-chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (msg?.type !== "guard-state" || sender.tab?.id == null) return false;
-  store.get(sender.tab.id).then((note) => sendResponse({ on: isUnsaved(note) }));
+chrome.runtime.onMessage.addListener((msg: { type?: string } | undefined, sender, sendResponse) => {
+  const tabId = sender.tab?.id;
+  if (msg?.type !== "guard-state" || tabId === undefined) return false;
+  void store.get(tabId).then((note) => sendResponse({ on: isUnsaved(note) }));
   return true; // async reply
 });
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== "local") return;
   for (const [key, change] of Object.entries(changes)) {
-    if (!key.startsWith(NOTE_PREFIX)) continue;
     const tabId = tabIdFromKey(key);
-    setBadge(tabId, !!change.newValue);
-    pushGuard(tabId, change.newValue ?? null);
+    if (tabId === null) continue;
+    const note = (change.newValue as Note | undefined) ?? null;
+    void setBadge(tabId, !!note);
+    void pushGuard(tabId, note);
   }
 });
 
@@ -57,7 +59,9 @@ chrome.tabs.onRemoved.addListener(async (tabId, { isWindowClosing }) => {
   else await store.remove(tabId);
 });
 
-chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) => store.move(removedTabId, addedTabId));
+chrome.tabs.onReplaced.addListener((addedTabId, removedTabId) =>
+  store.move(removedTabId, addedTabId),
+);
 
 chrome.tabs.onCreated.addListener((tab) => tryAdopt(tab));
 
@@ -76,13 +80,13 @@ chrome.tabs.onActivated.addListener(({ tabId }) => refreshTab(tabId));
 
 /* ---------- session restore ---------- */
 
-async function tryAdopt(tab) {
-  if (tab.id == null || !(await store.hasPending())) return;
+async function tryAdopt(tab: chrome.tabs.Tab): Promise<void> {
+  if (tab.id === undefined || !(await store.hasPending())) return;
   const url = tab.url || tab.pendingUrl;
   if (await store.adopt(tab.id, url)) await refreshTab(tab.id);
 }
 
-async function adoptAll() {
+async function adoptAll(): Promise<void> {
   const tabs = await chrome.tabs.query({});
   tabs.sort((a, b) => a.windowId - b.windowId || a.index - b.index);
   for (const tab of tabs) await tryAdopt(tab);
@@ -99,7 +103,7 @@ chrome.alarms.create("housekeeping", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name !== "housekeeping") return;
   const tabs = await chrome.tabs.query({});
-  await store.sweep(tabs.map((t) => t.id));
+  await store.sweep(tabs.flatMap((t) => (t.id === undefined ? [] : [t.id])));
   await store.expirePending();
 });
 
