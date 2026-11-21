@@ -6,8 +6,8 @@ Goal: a published, tested, full-stack project that backs an SDE 2 résumé. The 
 
 | Stage | Name | Status |
 |-------|------|--------|
-| 0 | MVP | Built, needs a final check in Brave |
-| 1 | Engineering foundation | Not started |
+| 0 | MVP | Done |
+| 1 | Engineering foundation | In progress |
 | 2 | Robustness and design doc | Not started |
 | 3 | Publish | Not started |
 | 4 | Opt-in keep and sync | Not started |
@@ -19,29 +19,29 @@ Rough timing (about 15 hours a week): Stages 1–3 take 2 weeks, Stage 4 takes 4
 
 ## Stage 0: MVP
 
-- [ ] Verified in Brave: FR-1 open note on any tab, including new-tab and `brave://` pages
-- [ ] FR-2 edit plain text
-- [ ] FR-3 auto-save within about 1 s
-- [ ] FR-4 note deleted when its tab closes
-- [ ] FR-5 save to file (.txt with title, URL, date, note)
-- [ ] FR-6 badge on tabs with notes
-- [ ] FR-7 delete with confirmation
-- [ ] FR-8 list of tabs with notes
-- [ ] FR-9 shortcut (`Alt+N`)
-- [ ] FR-24 session restore: restart Brave with "Continue where you left off"; notes return to their tabs
-- [ ] FR-25 close a tab with an unsaved note on a web page: the "Leave page?" prompt appears; after Save to file it does not
-- [ ] FR-26 side panel: expand from the popup, switch tabs, the panel follows; popup still works
-- [ ] NFR-1 to NFR-11 spot-checked (opens under 200 ms, no `innerHTML`, minimal permissions, keyboard only, dark mode)
+- [x] Verified in Brave: FR-1 open note on any tab, including new-tab and `brave://` pages
+- [x] FR-2 edit plain text
+- [x] FR-3 auto-save within about 1 s
+- [x] FR-4 note deleted when its tab closes
+- [x] FR-5 save to file (.txt with title, URL, date, note)
+- [x] FR-6 badge on tabs with notes
+- [x] FR-7 delete with confirmation
+- [x] FR-8 list of tabs with notes
+- [x] FR-9 shortcut (`Alt+N`)
+- [x] FR-24 session restore: restart Brave with "Continue where you left off"; notes return to their tabs
+- [x] FR-25 close a tab with an unsaved note on a web page: the "Leave page?" prompt appears; after Save to file it does not
+- [x] FR-26 side panel: expand from the popup, switch tabs, the panel follows; popup still works
+- [x] NFR-1 to NFR-11 spot-checked (opens under 200 ms, no `innerHTML`, minimal permissions, keyboard only, dark mode)
 - [x] Open questions in the FR doc answered and recorded
 
 ## Stage 1: Engineering foundation
 
-- [ ] FR-10 convert `src/` to TypeScript (strict)
-- [ ] FR-10 add a build tool (Vite or esbuild) that outputs a loadable folder and a zip
-- [ ] NFR-12 lint and format config, passing
+- [x] FR-10 convert `src/` to TypeScript (strict)
+- [x] FR-10 add a build tool (Vite or esbuild) that outputs a loadable folder and a zip
+- [x] NFR-12 lint and format config, passing
 - [ ] FR-11 GitHub Actions: lint, type-check, test, build, upload zip
 - [ ] NFR-13 coverage report in CI, at least 90% on `lib/`
-- [ ] README "Develop" section updated for the new build
+- [x] README "Develop" section updated for the new build
 
 Done when: a push to GitHub runs CI green and produces an installable zip.
 

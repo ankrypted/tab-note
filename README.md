@@ -17,14 +17,19 @@ A browser extension for **Brave** (Manifest V3; Chrome and Edge also work) for q
 
 ## Download (for friends)
 
-Grab `tab-note-<version>.tar.gz` from the [Releases page](https://github.com/ankrypted/tab-note/releases). It holds the `extension` folder and an install guide. To build it yourself: `npm run package` (writes `dist/`).
+Grab `tab-note-<version>.tar.gz` from the [Releases page](https://github.com/ankrypted/tab-note/releases). It holds the `extension` folder and an install guide. To build it yourself: `npm run package` (writes `dist/`, needs the setup under Develop).
 
 ## Try it from source
 
-1. In Brave, open `brave://extensions` and turn on **Developer mode** (top right).
-2. Click **Load unpacked** and choose the [src/](src/) folder.
-3. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to Tab Note. Brave hides extensions by default, and the badge dot only shows when it is pinned.
-4. Open any web page and click the Tab Note icon, or press `Alt+N`.
+The code is TypeScript, so build it first, then load the **built** folder.
+
+1. `npm ci` then `npm run build` (needs Node 18 or newer). This writes `dist/extension/`.
+2. In Brave, open `brave://extensions` and turn on **Developer mode** (top right).
+3. Click **Load unpacked** and choose the `dist/extension` folder.
+4. Pin it: click the puzzle-piece icon in the toolbar, then the pin next to Tab Note. Brave hides extensions by default, and the badge dot only shows when it is pinned.
+5. Open any web page and click the Tab Note icon, or press `Alt+N`.
+
+After changing code, run `npm run build` again and click the reload arrow on the extension card.
 
 Notes for Brave:
 - Change the shortcut at `brave://extensions/shortcuts`.
@@ -35,25 +40,36 @@ Notes for Brave:
 ## Develop
 
 ```
-npm test         # unit tests for storage, export and URL helpers (Node 18+)
-npm run icons    # regenerate the toolbar icons (Python 3)
-npm run package  # build dist/tab-note-<version>.tar.gz for sharing (Python 3)
+npm ci               # install the exact pinned dependencies
+npm run build        # TypeScript -> dist/extension (loadable folder)
+npm test             # unit tests (Vitest)
+npm run test:coverage  # tests plus a coverage report; fails under 90% on src/lib
+npm run lint         # ESLint (also forbids innerHTML, see NFR-7)
+npm run typecheck    # strict TypeScript, no emit
+npm run format       # Prettier: rewrite files   (format:check only checks)
+npm run check        # everything above in one go: what CI runs
+npm run package      # build, then write dist/tab-note-<version>.tar.gz and .zip
+npm run icons        # regenerate the toolbar icons (Python 3)
 ```
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the same checks on every push and pull request and uploads the zip as a build artifact.
 
 ## Layout
 
 ```
 src/
-  manifest.json
-  background.js      tab lifecycle, session restore, badge, close guard
-  content.js         shows the "Leave page?" prompt for unsaved notes
-  lib/url.js         short display form of a URL
-  lib/storage.js     per-tab note store, restore and cleanup (chrome.storage.local behind a small interface)
-  lib/export.js      file name and contents for Save to file
-  popup/             the popup UI
-tests/               unit tests
-tools/make_icons.py  icon generator
-tools/package.py     builds the shareable tar.gz
-tools/dist-readme.md install guide that goes inside the tar.gz
+  manifest.json       copied into the build; the version is stamped from package.json
+  background.ts       tab lifecycle, session restore, badge, close guard
+  content.ts          shows the "Leave page?" prompt for unsaved notes
+  lib/url.ts          short display form of a URL
+  lib/storage.ts      per-tab note store, restore and cleanup (chrome.storage.local behind a small interface)
+  lib/export.ts       file name and contents for Save to file
+  popup/              the popup UI (HTML, CSS, popup.ts)
+  icons/              toolbar icons
+tests/                unit tests (Vitest)
+scripts/build.mjs     the esbuild build
+tools/make_icons.py   icon generator
+tools/package.py      builds the tar.gz and zip from dist/extension
+tools/dist-readme.md  install guide that goes inside the tar.gz
+.github/workflows/    CI
 ```
-
